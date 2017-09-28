@@ -1,0 +1,7 @@
+name: JShell
+version: 0.0.1
+author: bramhaag
+main: me.bramhaag.jshell.Main
+commands:
+  jshell:
+    description: "jshell"

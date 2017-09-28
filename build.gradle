@@ -1,0 +1,27 @@
+plugins {
+    id "java"
+    id "org.zeroturnaround.gradle.jrebel" version "1.1.6"
+}
+
+group 'me.bramhaag'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.9
+targetCompatibility = sourceCompatibility
+
+repositories {
+    mavenCentral()
+    maven { url "https://hub.spigotmc.org/nexus/content/repositories/snapshots/" }
+    maven { url = "https://oss.sonatype.org/content/repositories/snapshots/" }
+}
+
+dependencies {
+    compile "org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT"
+
+    compileOnly "org.jetbrains:annotations:15.0"
+}
+
+task copyToServer(type: Copy) {
+    from 'build/libs/' + project.name + '-' + version + '.jar'
+    into 'C:/Users/Bram/Desktop/Spigot server/plugins'
+}
