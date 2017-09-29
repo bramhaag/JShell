@@ -3,34 +3,43 @@ package me.bramhaag.jshell;
 import jdk.jshell.Diag;
 import jdk.jshell.JShell;
 import jdk.jshell.SnippetEvent;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class JShellWrapper {
 
     private Player player;
-    private JShell shell;
+    private volatile JShell shell;
 
     private boolean active = false;
 
     private String codeBuffer = "";
 
-    private JShellWrapper(Player player, JShell shell) {
+    private JShellWrapper(@NotNull Player player, @Nullable JShell shell) {
         this.player = player;
         this.shell = shell;
     }
 
+    /**
+     * Evaluate code
+     * @param code code to evaluate
+     */
     public void eval(@NotNull String code) {
         player.sendMessage(String.format("%s> %s", "".equals(codeBuffer) ? "jshell" : "...", code));
+
+        if(code.startsWith("/")) {
+            processCommand(code);
+            return;
+        }
 
         code = complete(code);
         if(code == null) {
@@ -38,9 +47,36 @@ public class JShellWrapper {
         }
 
         List<SnippetEvent> events = shell.eval(code);
-        events.forEach(this::handleSnippetEvent);
+        events.forEach(this::processSnippetEvent);
     }
 
+    /**
+     * Process commands
+     * @param command command to process
+     */
+    private void processCommand(@NotNull String command) {
+        command = command.substring(1);
+
+        switch (command.toLowerCase()) {
+            case "exit":
+                setActive(false);
+                player.sendMessage(ChatColor.YELLOW + "Exited JShell");
+                break;
+            case "variables":
+                shell.variables().forEach(v -> player.sendMessage("|  " + v.source().trim()));
+                break;
+            case "imports":
+                shell.imports().forEach(i -> player.sendMessage("|  " + i.fullname().trim()));
+                break;
+        }
+    }
+
+    /**
+     * Complete possibly incomplete code
+     * @param code code to complete
+     * @return completed code or null when code is too incomplete to complete
+     */
+    @Nullable
     private String complete(@NotNull String code) {
         switch(shell.sourceCodeAnalysis().analyzeCompletion(code).completeness()) {
             case EMPTY:
@@ -60,13 +96,22 @@ public class JShellWrapper {
         }
     }
 
-    private void handleSnippetEvent(SnippetEvent event) {
-        List<Diag> diagnostics = shell.diagnostics(event.snippet()).collect(Collectors.toList());
+    /**
+     * Check code for errors
+     * @param event event to check
+     */
+    private void processSnippetEvent(SnippetEvent event) {
         player.sendMessage("=> " + event.value());
-        diagnostics.forEach(d -> showDiagnostic(event.snippet().source(), d));
-        System.out.println(event.toString());
+
+        shell.diagnostics(event.snippet())
+                .forEach(d -> showDiagnostic(event.snippet().source(), d));
     }
 
+    /**
+     * Show diagnostics for code
+     * @param source code to check
+     * @param diag diagnostic of code
+     */
     private void showDiagnostic(String source, Diag diag) {
         Arrays.stream(diag.getMessage(null).split("\\r?\\n"))
                 .filter(line -> !line.trim().startsWith("location:"))
@@ -115,49 +160,96 @@ public class JShellWrapper {
         player.sendMessage(sb.toString());
     }
 
+    /**
+     * Check if shell is currently in use
+     * @return if shell is in use
+     */
     public boolean isActive() {
         return active;
     }
 
+    /**
+     * Set shell in use
+     * @param active in use
+     */
     public void setActive(boolean active) {
         this.active = active;
     }
 
+    /**
+     * Check if shell is null, meaning shell is still being created
+     * @return if shell is null
+     */
+    @NotNull
+    public Boolean isEmpty() {
+        return shell == null;
+    }
+
+    /**
+     * Builder class for {@link JShellWrapper}
+     */
     public static class Builder {
         private List<String> imports = new ArrayList<>();
-        private Map<String, String> variables = new LinkedHashMap<>();
+        private List<JShellVariable> variables = new LinkedList<>();
 
         private Player player;
 
+        /**
+         * @param player player who owns the shell
+         */
         public Builder(@NotNull Player player) {
             this.player = player;
         }
 
-        public Builder addImports(@NotNull String... imports) {
-            this.imports.addAll(Arrays.asList(imports));
+        /**
+         * Add imports
+         * @param imports imports to add
+         * @return Builder instance for chaining
+         */
+        public Builder addImports(@NotNull List<String> imports) {
+            this.imports.addAll(imports);
 
             return this;
         }
 
-        public Builder addVariable(@NotNull String key, @NotNull String value) {
-            this.variables.put(key, value);
+        /**
+         * Add variables
+         * @param variables variables to add
+         * @return Builder instance for chaining
+         */
+        public Builder addVariables(@NotNull List<JShellVariable> variables) {
+            this.variables.addAll(variables);
 
             return this;
         }
 
+        /**
+         * Build {@link JShellWrapper} using properties set in other methods from this class
+         * @return {@link JShellWrapper} with properties defined in other methods
+         */
+        @NotNull
         public JShellWrapper build() {
             JShell shell = JShell.builder().build();
 
-            addImports("java.util.*", "java.io.*", "java.math.*", "java.net.*", "java.util.concurrent.*", "java.util.prefs.*", "java.util.regex.*", "java.util.stream.*");
-
             imports.stream()
-                    .map(i -> "import " + i + ";").forEach(shell::eval);
+                    .map(i -> "import " + i + ";")
+                    .forEach(shell::eval);
 
-            variables.entrySet().stream()
-                    .map(e -> String.format("%s %s = %s;", e.getValue().getClass().getTypeName(), e.getKey(), e.getValue()))
+            variables.stream()
+                    .map(e -> String.format("%s %s = %s;", e.getType(), e.getName(), e.getValue()))
+                    .peek(System.out::println)
                     .forEach(shell::eval);
 
             return new JShellWrapper(player, shell);
+        }
+
+        /**
+         * Create a {@link JShellWrapper} with an empty shell
+         * @return {@link JShellWrapper} with an empty shell
+         */
+        @NotNull
+        public JShellWrapper newEmpty() {
+            return new JShellWrapper(player, null);
         }
     }
 }

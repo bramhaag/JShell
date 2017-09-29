@@ -1,0 +1,23 @@
+#Default imports added to all shells
+imports:
+  - "java.util.*"
+  - "java.io.*"
+  - "java.math.*"
+  - "java.net.*"
+  - "java.util.concurrent.*"
+  - "java.util.prefs.*"
+  - "java.util.regex.*"
+  - "java.util.stream.*"
+
+#Default variables added to all shells
+#Variables follow the following pattern:
+#<name>:
+#    type: "<type>"
+#    value: "<value>" (NOTE: the value is always between quotation marks, this means you will need an extra set of quotation marks for Strings)
+variables:
+  myInt:
+    type: "int"
+    value: "42"
+  myString:
+    type: "String"
+    value: "\"Hello World!\""

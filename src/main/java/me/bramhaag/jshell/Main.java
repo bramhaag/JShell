@@ -6,12 +6,9 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getServer().getPluginManager().registerEvents(new PlayerListener(), this);
-        getCommand("jshell").setExecutor(new JShellCommand());
-    }
+        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+        getCommand("jshell").setExecutor(new JShellCommand(this));
 
-    @Override
-    public void onDisable() {
-
+        saveDefaultConfig();
     }
 }

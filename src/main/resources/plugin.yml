@@ -4,4 +4,4 @@ author: bramhaag
 main: me.bramhaag.jshell.Main
 commands:
   jshell:
-    description: "jshell"
+    description: "JShell in Minecraft"

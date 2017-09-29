@@ -4,7 +4,10 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public class JShellManager {
@@ -21,9 +24,16 @@ public class JShellManager {
      * Create a new shell for a player
      * @param player the player
      */
-    public JShellWrapper newShell(@NotNull Player player) {
-        JShellWrapper shell = new JShellWrapper.Builder(player).build();
-        shells.put(player.getUniqueId(), shell);
+    @NotNull
+    public JShellWrapper newShell(@NotNull Player player, @Nullable List<String> imports, @Nullable List<JShellVariable> variables) {
+        this.shells.put(player.getUniqueId(), new JShellWrapper.Builder(player).newEmpty());
+
+        JShellWrapper shell = new JShellWrapper.Builder(player)
+                .addImports(Objects.requireNonNullElse(imports, new ArrayList<>()))
+                .addVariables(Objects.requireNonNullElse(variables, new ArrayList<>()))
+                .build();
+
+        this.shells.put(player.getUniqueId(), shell);
         return shell;
     }
 
@@ -34,7 +44,7 @@ public class JShellManager {
      */
     @Nullable
     public JShellWrapper getShell(@NotNull UUID uuid) {
-        return shells.get(uuid);
+        return this.shells.get(uuid);
     }
 
     /**
@@ -42,18 +52,22 @@ public class JShellManager {
      * @param uuid player's UUID
      */
     public void removeShell(@NotNull UUID uuid) {
-        shells.remove(uuid);
-    }
-
-    private static class JShellManagerHolder {
-        private static final JShellManager INSTANCE = new JShellManager();
+        this.shells.remove(uuid);
     }
 
     /**
      * Get instance of {@link JShellManager}
      * @return instance of {@link JShellManager}
      */
+    @NotNull
     public static JShellManager getInstance() {
         return JShellManagerHolder.INSTANCE;
+    }
+
+    /**
+     * Holder class for {@link JShellManager}'s instance
+     */
+    private static class JShellManagerHolder {
+        private static final JShellManager INSTANCE = new JShellManager();
     }
 }
