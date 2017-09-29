@@ -27,6 +27,11 @@ public class JShellCommand implements CommandExecutor {
 
         Player player = (Player) sender;
 
+        if(player.hasPermission("jshell.execute")) {
+            player.sendMessage(ChatColor.RED + "You don't have permission to execute this command!");
+            return true;
+        }
+
         JShellWrapper shell = JShellManager.getInstance().getShell(player.getUniqueId());
         if(shell == null) {
             player.sendMessage(ChatColor.GREEN + "JShell session initialized");
