@@ -122,40 +122,44 @@ public class JShellWrapper {
   }
 
   /**
-   * Show diagnostics for code
+   * Show diagnostics for code. These are used to describe errors that happen during evaluation.
    *
    * @param source code to check
    * @param diag   diagnostic of code
    */
   private void showDiagnostic(String source, Diag diag) {
+    // Print error message
     Arrays.stream(MESSAGE_SPLIT_PATTERN.split(diag.getMessage(null)))
         .filter(line -> !line.trim().startsWith("location:"))
         .map(line -> Colors.ERROR_COLOR + line)
         .forEach(player::sendMessage);
 
+    // Determine start and end positions of erroneous source code line
     int startPosition = (int) diag.getStartPosition();
     int endPosition = (int) diag.getEndPosition();
 
-    Matcher m = LINE_BREAK_PATTERN.matcher(source);
+    Matcher lineBreakMatcher = LINE_BREAK_PATTERN.matcher(source);
 
     int startLinePosition = 0;
     int endLinePosition = -2;
 
-    while (m.find(startLinePosition)) {
-      endLinePosition = m.start();
+    while (lineBreakMatcher.find(startLinePosition)) {
+      endLinePosition = lineBreakMatcher.start();
       if (endLinePosition >= startPosition) {
         break;
       }
 
-      startLinePosition = m.end();
+      startLinePosition = lineBreakMatcher.end();
     }
 
     if (endLinePosition < startPosition) {
       endLinePosition = source.length();
     }
 
+    // Print erroneous source code line
     player.sendMessage(Colors.ERROR_COLOR + source.substring(startLinePosition, endLinePosition));
 
+    // Create error indicators (^ for single character errors, ^---^ for multi character errors)
     StringBuilder sb = new StringBuilder();
     int start = startPosition - startLinePosition;
     sb.append(" ".repeat(Math.max(0, start)))
@@ -168,6 +172,7 @@ public class JShellWrapper {
           .append(multiline ? "-..." : '^');
     }
 
+    // Print error indicators
     player.sendMessage(Colors.ERROR_COLOR + sb.toString());
   }
 
