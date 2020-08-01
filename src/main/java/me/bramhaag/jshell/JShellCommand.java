@@ -1,66 +1,58 @@
 package me.bramhaag.jshell;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 public class JShellCommand implements CommandExecutor {
 
-    private Main plugin;
+  private final List<String> defaultImports;
+  private final List<JShellVariable> defaultVariables;
 
-    public JShellCommand(@NotNull Main plugin) {
-        this.plugin = plugin;
+  public JShellCommand(@NotNull FileConfiguration config) {
+    this.defaultImports = config.getStringList("imports");
+    this.defaultVariables = config.getConfigurationSection("variables").getKeys(false).stream()
+        .map(s -> "variables." + s)
+        .map(config::getConfigurationSection)
+        .map(JShellVariable::new)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
+      @NotNull String label, @NotNull String[] args) {
+    if (!(sender instanceof Player)) {
+      sender.sendMessage("This command can only be executed by players!");
+      return true;
     }
 
-    @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if(!(sender instanceof Player)) {
-            sender.sendMessage("This command can only be executed by players!");
-            return true;
-        }
+    Player player = (Player) sender;
 
-        Player player = (Player) sender;
-
-        if(player.hasPermission("jshell.execute")) {
-            player.sendMessage(ChatColor.RED + "You don't have permission to execute this command!");
-            return true;
-        }
-
-        JShellWrapper shell = JShellManager.getInstance().getShell(player.getUniqueId());
-        if(shell == null) {
-            player.sendMessage(ChatColor.GREEN + "JShell session initialized");
-
-            List<String> imports = plugin.getConfig().getStringList("imports");
-            List<JShellVariable> variables = plugin.getConfig().getConfigurationSection("variables").getKeys(false).stream()
-                    .map(s -> plugin.getConfig().getConfigurationSection("variables." + s))
-                    .map(JShellVariable::new)
-                    .collect(Collectors.toList());
-
-            shell = JShellManager.getInstance().newShell(player, imports, variables);
-        } else if (!shell.isActive()){
-            player.sendMessage(ChatColor.GREEN + "JShell session continued");
-        } else {
-            player.sendMessage(ChatColor.RED + "JShell session is already active!");
-            return true;
-        }
-
-        shell.setActive(true);
-
-        if(args.length > 0) {
-            shell.eval(String.join(" ", args));
-            shell.setActive(false);
-
-            return true;
-        }
-
-        player.sendMessage(ChatColor.YELLOW + "Type " + ChatColor.RED + "/exit" + ChatColor.YELLOW + " to exit JShell");
-
-        return true;
+    if (!player.isOp() || !player.hasPermission("jshell.execute")) {
+      player.sendMessage(Colors.ERROR_COLOR + "You don't have permission to execute this command!");
+      return true;
     }
+
+    JShellWrapper shell = JShellManager.getInstance().getShell(player)
+        .orElseGet(
+            () -> JShellManager.getInstance().newShell(player, defaultImports, defaultVariables));
+
+    shell.setActive(true);
+    player.sendMessage(Colors.SUCCESS_COLOR + "Welcome to JShell -- Version " + System
+        .getProperty("java.version"));
+    player.sendMessage(Colors.INFO_COLOR + "Type " + ChatColor.RED + "/exit" + Colors.INFO_COLOR
+        + " to exit JShell");
+
+    if (args.length > 0) {
+      shell.eval(String.join(" ", args));
+    }
+
+    return true;
+  }
 }

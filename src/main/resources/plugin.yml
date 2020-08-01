@@ -1,7 +1,8 @@
 name: JShell
-version: 0.0.2
+version: 0.0.3
 author: bramhaag
 main: me.bramhaag.jshell.Main
+api-version: 1.16
 commands:
   jshell:
     description: "JShell in Minecraft"
